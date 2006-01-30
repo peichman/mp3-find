@@ -1,0 +1,7 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/MP3-Find.t
+lib/MP3/Find.pm
+bin/mp3find

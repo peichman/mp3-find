@@ -1,0 +1,30 @@
+#!/usr/bin/perl -w
+use strict;
+
+package MyVisitor;
+use base qw( CQL::Visitor );
+
+sub term {
+    my ($self,$node) = @_;
+    # do something to the node
+    print $node->{qualifier}, " ", $node->{term}, "\n";
+}
+
+package main;
+
+use CQL::Parser;
+use YAML;
+
+my $p = CQL::Parser->new;
+
+my $cql = <<END;
+artist = (ilyaimy or rob) and title = angel
+END
+
+my $root = $p->parse($cql);
+
+#print Dump($root);
+
+my $visitor = MyVisitor->new;
+$visitor->visit($root);
+

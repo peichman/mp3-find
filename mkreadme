@@ -1,0 +1,17 @@
+#!/bin/sh
+perl -I./lib -M$1 -e"\$ver = '$1 version ' . $1->VERSION; print qq[\$ver\\n] . '=' x length(\$ver) . qq[\\n]"
+
+PM_FILE=./lib/`echo $1 | sed 's/::/\//g'`.pm
+
+podselect -section 'DESCRIPTION/!.' $PM_FILE | pod2text
+
+echo 'INSTALL'
+echo '    To install this module type the following:'
+echo
+echo '        perl Makefile.PL'
+echo '        make'
+echo '        make test'
+echo '        make install'
+echo
+
+podselect -section 'SYNOPSIS|REQUIRES|COPYRIGHT AND LICENSE' $PM_FILE | pod2text
