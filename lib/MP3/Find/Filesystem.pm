@@ -72,3 +72,52 @@ sub match_mp3 {
 
 # module return
 1;
+
+=head1 NAME
+
+MP3::Find::Filesystem - File::Find-based backend to MP3::Find
+
+=head1 SYNOPSIS
+
+    use MP3::Find::Filesystem;
+    my $finder = MP3::Find::Filesystem->new;
+    
+    my @mp3s = $finder->find_mp3s(
+        dir => '/home/peter/music',
+        query => {
+            artist => 'ilyaimy',
+            album  => 'myxomatosis',
+        },
+        ignore_case => 1,
+    );
+
+=head1 REQUIRES
+
+L<File::Find>, L<MP3::Info>, L<Scalar::Util>
+
+=head1 DESCRIPTION
+
+This module implements the C<search> method from L<MP3::Find::Base>
+using a L<File::Find> based search of the local filesystem.
+
+=head2 Special Options
+
+There are no special options for B<MP3::Find::Filesystem>. See
+L<MP3::Find> for the description of the general options.
+
+=head1 SEE ALSO
+
+L<MP3::Find>, L<MP3::Find::DB>
+
+=head1 AUTHOR
+
+Peter Eichman <peichman@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2006 by Peter Eichman. All rights reserved.
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut

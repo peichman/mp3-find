@@ -1,6 +1,4 @@
 Revision history for Perl extension MP3::Find.
 
-0.01  Sun Jan 22 20:07:17 2006
-	- original version; created by h2xs 1.23 with options
-		-XAn MP3::Find
-
+0.01  29 Jan 2006
+    - first CPAN release

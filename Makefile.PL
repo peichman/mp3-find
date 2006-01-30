@@ -9,6 +9,9 @@ WriteMakefile(
         'File::Find'   => 0,
         'Scalar::Util' => 0,
     },
+    EXE_FILES => [qw(
+        bin/mp3find
+    )],    
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/MP3/Find.pm', # retrieve abstract from module
        AUTHOR         => 'Peter Eichman <peichamn@cpan.org>') : ()),

@@ -36,7 +36,8 @@ MP3::Find - Search and sort MP3 files based on their ID3 tags
 
 =head1 SYNOPSIS
 
-    use MP3Find;
+    # select with backend you want
+    use MP3::Find qw(Filesystem);
     
     print "$_\n" foreach find_mp3s(
         dir => '/home/peter/cds',
@@ -58,12 +59,22 @@ tags, and return either the list of filenames (the deault), a
 C<printf>-style formatted string for each file using its ID3 tags,
 or the actual Perl data structure representing the results.
 
+There are currently two backends to this module: L<MP3::Find::Filesystem>
+and L<MP3::Find::DB>. You choose which one you want by passing its
+name as the argument to you C<use> statement; B<MP3::Find> will look for
+a B<MP3::Find::$BACKEND> module. If no backend name is given, it will
+default to using L<MP3::Find::Filesystem>.
+
+B<Note:> I'm still working out some kinks in the DB backend, so it
+is currently not as stable as the Filesystem backend.
+
 =head1 REQUIRES
 
-L<File::Find>, L<MP3::Info>, L<Scalar::Util>
+L<File::Find>, L<MP3::Info>, and L<Scalar::Util> are needed for
+the filesystem backend (L<MP3::Find::Filesystem>).
 
-L<DBI> and L<DBD::SQLite> are needed if you want to have a
-database backend.
+L<DBI>, L<DBD::SQLite>, and L<SQL::Abstract> are needed for the
+database backend (L<MP3::Find::DB>).
 
 =head1 EXPORTS
 
@@ -94,13 +105,16 @@ Ignore case when matching search strings to the ID3 tag values.
 
 =item C<exact_match>
 
-Adds an implicit C<^> and C<$> around each query string.
+Adds an implicit C<^> and C<$> around each query string. Does nothing
+if the query is already a regular expression.
 
 =item C<sort>
 
 What field or fields to sort the results by. Can either be a single
 scalar field name to sort by, or an arrayref of field names. Again,
-acceptable field names are anything that L<MP3::Info> knows about.
+acceptable field names are anything that L<MP3::Info> knows about;
+field names will be converted to upper case as with the C<query>
+option.
 
 =item C<printf>
 
@@ -143,18 +157,23 @@ the key C<FILENAME> (with the obvious value ;-)
 
 =back
 
+=head1 BUGS
+
+There are probably some in there; let me know if you find any (patches
+welcome).
+
 =head1 TODO
 
-More of a structured query would be nice; currently everything
-is and-ed together, and it would be nice to be able to put query
-keys together with a mixture of and and or.
+Better tests, using some actual sample mp3 files.
 
-Searching a big directory is slo-o-ow! Investigate some sort of 
-caching of results?
-
-The current sorting function is also probably quite inefficient.
+Other backends (a caching filesystem backend, perhaps?)
 
 =head1 SEE ALSO
+
+L<MP3::Find::Filesystem>, L<MP3::Find::DB>
+
+L<mp3find> is the command line frontend to this module (it
+currently only uses the filesystem backend).
 
 See L<MP3::Info> for more information about the fields you can
 search and sort on.

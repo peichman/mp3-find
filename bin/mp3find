@@ -59,13 +59,15 @@ The real guts of the operation are in L<MP3::Find>.
 
 =over
 
-=item C<-i>
+=item C<-ignore-case>, C<-i>
 
 Case insensitive matching.
 
-=item C<-w>
+=item C<-exact-match>, C<-w>
 
-Match only whole words.
+All search patterns must match the entire value, and not just a
+substring. This has the same effect as putting a C<^> and C<$>
+around each pattern.
 
 =item C<-sort>
 
@@ -91,15 +93,23 @@ the C<%s> code in Perl's C<printf> function.
 If no C<-printf> option is used, the full path to the file is printed
 instead.
 
-=item C<< <-field> <pattern> >>
+=item C<< -<field> <pattern> [patterns...] >>
 
-The fields you are searching on. These are and-ed together. For the list
-of recognized fields, see L<MP3::Find>.
+The fields you are searching on. More than one pattern for a given field
+are combined with 'OR', while the fields to be matched are 'AND'-ed together.
+For the list of recognized fields, see L<MP3::Find>.
 
 =back
 
 =head1 AUTHOR
 
 Peter Eichman <peichman@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2006 by Peter Eichman. All rights reserved.
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =cut
