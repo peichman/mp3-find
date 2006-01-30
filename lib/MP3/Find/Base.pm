@@ -20,7 +20,8 @@ my %format_codes = (
 sub new {
     my $invocant = shift;
     my $class = ref $invocant || $invocant;
-    my $self = {};
+    my %options = @_;
+    my $self = \%options;
     bless $self, $class;
 }
 
@@ -39,11 +40,10 @@ sub find_mp3s {
         (ref $opt{sort} eq 'ARRAY' ? @{ $opt{sort} } : ($opt{sort})) :
         ();
     
-    
     foreach (keys %QUERY) {
         # so we don't have spurious warnings when trying to match against undef
         delete $QUERY{$_} unless defined $QUERY{$_};
-        # package everything unioformly, so subclasses don't need to unpack
+        # package everything uniformly, so subclasses don't need to unpack it
         $QUERY{$_} = [ $QUERY{$_} ] unless ref $QUERY{$_} eq 'ARRAY';
     }
     
@@ -89,135 +89,108 @@ sub search {
 
 =head1 NAME
 
-MP3::Find - Search and sort MP3 files based on their ID3 tags
+MP3::Find::Base - Base class for MP3::Find finders
 
 =head1 SYNOPSIS
 
-    use MP3Find;
+    package MyFinder;
+    use base 'MP3::Find::Base';
     
-    print "$_\n" foreach find_mp3s(
-        dir => '/home/peter/cds',
-        query => {
-            artist => 'ilyaimy',
-            title => 'deep in the am',
-        },
-        ignore_case => 1,
-        match_words => 1,
-        sort => [qw(year album tracknum)],
-        printf => '%2n. %a - %t (%b: %y)',
-    );
+    sub search {
+        my $self = shift;
+        my ($query, $dirs, $sort, $options) = @_;
+        
+        # do something to find and sort the mp3s...
+        my @results = do_something(...);
+        
+        return @results;
+    }
+    
+    package main;
+    my $finder = MyFinder->new;
+    
+    # see MP3::Find for details about %options
+    print "$_\n" foreach $finder->find_mp3s(\%options);        
 
 =head1 DESCRIPTION
 
-This module allows you to search for MP3 files by their ID3 tags.
-You can ask for the results to be sorted by one or more of those
-tags, and return either the list of filenames (the deault), a
-C<printf>-style formatted string for each file using its ID3 tags,
-or the actual Perl data structure representing the results.
+This is the base class for the classes that actually do the
+searching and sorting for L<MP3::Find>.
 
-=head1 REQUIRES
+=head1 METHODS
 
-L<File::Find>, L<MP3::Info>, L<Scalar::Util>
+=head2 new
 
-L<DBI> and L<DBD::SQLite> are needed if you want to have a
-database backend.
+Really simple constructor. If you pass it a hash of options, it
+will hang on to them for you.
 
-=head1 EXPORTS
+=head2 search
+
+This is the one you should override in your subclass. If you
+don't, the base class C<search> method will croak.
+
+The C<search> method is called by the C<find_mp3s> method with
+the following arguments: the finder object, a hashref of query
+parameters, an arrayref of directories to search, and a hashref
+of miscellaneous options.
+
+The search method should return a list of hashrefs representing
+the results of the search. Each hashref should have the following
+keys (all except C<FILENAME> are derived from the keys returned
+by the C<get_mp3tag> and C<get_mp3Info> functions from L<MP3::Info>):
+
+    FILENAME
+    
+    TITLE
+    ARTIST
+    ALBUM
+    YEAR
+    COMMENT
+    GENRE
+    TRACKNUM
+    
+    VERSION         -- MPEG audio version (1, 2, 2.5)
+    LAYER           -- MPEG layer description (1, 2, 3)
+    STEREO          -- boolean for audio is in stereo
+    
+    VBR             -- boolean for variable bitrate
+    BITRATE         -- bitrate in kbps (average for VBR files)
+    FREQUENCY       -- frequency in kHz
+    SIZE            -- bytes in audio stream
+    OFFSET          -- bytes offset that stream begins
+    
+    SECS            -- total seconds
+    MM              -- minutes
+    SS              -- leftover seconds
+    MS              -- leftover milliseconds
+    TIME            -- time in MM:SS
+    
+    COPYRIGHT       -- boolean for audio is copyrighted
+    PADDING         -- boolean for MP3 frames are padded
+    MODE            -- channel mode (0 = stereo, 1 = joint stereo,
+                    -- 2 = dual channel, 3 = single channel)
+    FRAMES          -- approximate number of frames
+    FRAME_LENGTH    -- approximate length of a frame
+    VBR_SCALE       -- VBR scale from VBR header
+
 
 =head2 find_mp3s
 
-    my @results = find_mp3s(%options);
+The method that should be called by the program doing the searching.
 
-Takes the following options:
-
-=over
-
-=item C<dir>
-
-Where to start the search. This can either be a single string or
-an arrayref. Defaults to your home directory.
-
-=item C<query>
-
-Hashref of search parameters. Recognized fields are anything that
-L<MP3::Info> knows about. Field names can be given in either upper
-or lower case; C<find_mp3s> will convert them into upper case for 
-you. Value may either be strings, which are converted into regular
-exporessions, or may be C<qr[...]> regular expressions already.
-
-=item C<ignore_case>
-
-Ignore case when matching search strings to the ID3 tag values.
-
-=item C<exact_match>
-
-Adds an implicit C<^> and C<$> around each query string.
-
-=item C<sort>
-
-What field or fields to sort the results by. Can either be a single
-scalar field name to sort by, or an arrayref of field names. Again,
-acceptable field names are anything that L<MP3::Info> knows about.
-
-=item C<printf>
-
-By default, C<find_mp3s> just returns the list of filenames. The 
-C<printf> option allows you to provide a formatting string to apply
-to the data for each file. The style is roughly similar to Perl's
-C<printf> format strings. The following formatting codes are 
-recognized:
-
-    %a - artist
-    %t - title
-    %b - album
-    %n - track number
-    %y - year
-    %g - genre
-    %% - literal '%'
-
-Numeric modifers may be used in the same manner as with C<%s> in
-Perl's C<printf>.
-
-=item C<no_format>
-
-Causes C<find_mp3s> to return an array of hashrefs instead of an array
-of (formatted) strings. Each hashref consists of the key-value pairs
-from C<MP3::Info::get_mp3_tag> and C<MP3::Info::get_mp3_info>, plus
-the key C<FILENAME> (with the obvious value ;-)
-
-    @results = (
-        {
-            FILENAME => ...,
-            TITLE    => ...,
-            ARTIST   => ...,
-            ...
-            SECS     => ...,
-            BITRATE  => ...,
-            ...
-        },
-        ...
-    );
-
-=back
+See L<MP3::Find> for an explanation of the options that can be passed
+to C<find_mp3s>.
 
 =head1 TODO
 
-More of a structured query would be nice; currently everything
-is and-ed together, and it would be nice to be able to put query
-keys together with a mixture of and and or.
-
-Searching a big directory is slo-o-ow! Investigate some sort of 
-caching of results?
-
-The current sorting function is also probably quite inefficient.
+More format codes? Possibly look into using L<String::Format>
 
 =head1 SEE ALSO
 
+L<MP3::Find>, L<MP3::Find::Filesystem>, L<MP3::Find::DB>
+
 See L<MP3::Info> for more information about the fields you can
 search and sort on.
-
-L<File::Find::Rule::MP3Info> is another way to search for MP3
-files based on their ID3 tags.
 
 =head1 AUTHOR
 
