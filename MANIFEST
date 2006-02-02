@@ -2,7 +2,9 @@ Changes
 Makefile.PL
 MANIFEST
 README
-t/MP3-Find.t
+t/01.t
+t/02-filesystem.t
+t/mp3s/not-an-mp3
 lib/MP3/Find.pm
 lib/MP3/Find/Base.pm
 lib/MP3/Find/Filesystem.pm
