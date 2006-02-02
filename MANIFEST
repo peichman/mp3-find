@@ -4,6 +4,7 @@ MANIFEST
 README
 t/01.t
 t/02-filesystem.t
+t/03-db.t
 t/mp3s/not-an-mp3
 lib/MP3/Find.pm
 lib/MP3/Find/Base.pm

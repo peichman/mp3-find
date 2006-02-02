@@ -8,7 +8,7 @@ use vars qw($VERSION @EXPORT);
 
 use Carp;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 @EXPORT = qw(find_mp3s);
 
@@ -67,6 +67,11 @@ default to using L<MP3::Find::Filesystem>.
 
 B<Note:> I'm still working out some kinks in the DB backend, so it
 is currently not as stable as the Filesystem backend.
+
+B<Note the second>: This whole project is still in the alpha stage, so
+I can make no guarentees that there won't be significant interface changes
+in the next few versions or so. Also, comments about what about the API
+rocks (or sucks!) are appreciated.
 
 =head1 REQUIRES
 

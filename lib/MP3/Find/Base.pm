@@ -92,7 +92,7 @@ sub search {
 
 =head1 NAME
 
-MP3::Find::Base - Base class for MP3::Find finders
+MP3::Find::Base - Base class for MP3::Find backends
 
 =head1 SYNOPSIS
 

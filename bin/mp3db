@@ -2,147 +2,68 @@
 use strict;
 
 use lib '/home/peter/projects/mp3-find/lib';
-use DBI;
-use MP3::Find;
+use MP3::Find::DB;
 
 use File::Spec::Functions qw(catfile);
 use Getopt::Long;
 GetOptions(
-    'create' => \my $CREATE,
+    'create'   => \my $CREATE,
     'file|f=s' => \my $DB_FILE,
 );
 
 $DB_FILE ||= catfile($ENV{HOME}, 'mp3.db');
 
-#TODO: hints on numeric columns
-my @COLUMNS = (
-    [ mtime => 'INTEGER' ],
-    [ FILENAME => 'TEXT' ], 
-    [ TITLE => 'TEXT' ], 
-    [ ARTIST => 'TEXT' ], 
-    [ ALBUM => 'TEXT' ],
-    [ YEAR => 'INTEGER' ], 
-    [ COMMENT => 'TEXT' ], 
-    [ GENRE => 'TEXT' ], 
-    [ TRACKNUM => 'INTEGER' ], 
-    [ VERSION => 'NUMERIC' ],
-    [ LAYER => 'INTEGER' ], 
-    [ STEREO => 'TEXT' ],
-    [ VBR => 'TEXT' ],
-    [ BITRATE => 'INTEGER' ], 
-    [ FREQUENCY => 'INTEGER' ], 
-    [ SIZE => 'INTEGER' ], 
-    [ OFFSET => 'INTEGER' ], 
-    [ SECS => 'INTEGER' ], 
-    [ MM => 'INTEGER' ],
-    [ SS => 'INTEGER' ],
-    [ MS => 'INTEGER' ], 
-    [ TIME => 'TEXT' ],
-    [ COPYRIGHT => 'TEXT' ], 
-    [ PADDING => 'INTEGER' ], 
-    [ MODE => 'INTEGER' ],
-    [ FRAMES => 'INTEGER' ], 
-    [ FRAME_LENGTH => 'INTEGER' ], 
-    [ VBR_SCALE => 'INTEGER' ],
-);
-
 my @DIRS = @ARGV;
-push @DIRS, $ENV{HOME} unless @DIRS;
 
+my $f = MP3::Find::DB->new;
+$f->create_db($DB_FILE) if $CREATE;
+$f->update_db($DB_FILE, \@DIRS) if @DIRS;
 
-my $dbh = DBI->connect("dbi:SQLite:dbname=$DB_FILE",'','', { RaiseError => 1 });
+=head1 NAME
 
-create_table($dbh) if $CREATE;
-read_mp3s(\@DIRS);
+mp3db - Frontend for creating and updating a database for MP3::Find::DB
 
-sub read_mp3s {
-    my $dirs = shift;
+=head1 SYNOPSIS
 
-    my $mtime_sth = $dbh->prepare('SELECT mtime FROM mp3 WHERE FILENAME = ?');
-    my $insert_sth = $dbh->prepare(
-        'INSERT INTO mp3 (' . 
-            join(',', map { $$_[0] } @COLUMNS) .
-        ') VALUES (' .
-            join(',', map { '?' } @COLUMNS) .
-        ')'
-    );
-    my $update_sth = $dbh->prepare(
-        'UPDATE mp3 SET ' . 
-            join(',', map { "$$_[0] = ?" } @COLUMNS) . 
-        ' WHERE FILENAME = ?'
-    );
+    # create the database file
+    $ mp3db --create --file my_mp3.db
     
-    for my $mp3 (find_mp3s(dir => $dirs, no_format => 1)) {
-        # see if the file has been modified since it was first put into the db
-        $mp3->{mtime} = (stat($mp3->{FILENAME}))[9];
-        $mtime_sth->execute($mp3->{FILENAME});
-        my $records = $mtime_sth->fetchall_arrayref;
-        
-        warn "Multiple records for $$mp3{FILENAME}\n" if @$records > 1;
-        
-        if (@$records == 0) {
-            $insert_sth->execute(map { $mp3->{$$_[0]} } @COLUMNS);
-            print "A $$mp3{FILENAME}\n";
-        } elsif ($mp3->{mtime} > $$records[0][0]) {
-            # the mp3 file is newer than its record
-            $update_sth->execute((map { $mp3->{$$_[0]} } @COLUMNS), $mp3->{FILENAME});
-            print "U $$mp3{FILENAME}\n";
-        }
-    }
+    # add info
+    $ mp3db --file my_mp3.db ~/mp3
     
-    # as a workaround for the 'closing dbh with active staement handles warning
-    # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
-    # NOT WORKING!!!
-    foreach ($mtime_sth, $insert_sth, $update_sth) {
-        $_->{Active} = 1;
-        $_->finish;
-    }
-}
+    # update, and add results from another directory
+    $ mp3db --file my_mp3.db ~/mp3 ~/cds
 
-#TODO: hints on numeric vs. string columns, for proper sorting
-sub create_table {
-    my $dbh = shift;
-    $dbh->do('CREATE TABLE mp3 (' . join(',', map { "$$_[0] $$_[1]" } @COLUMNS) . ')');
-}
+=head1 DESCRIPTION
 
-=begin
+    mp3db [options] [directory] [directories...]
 
-    CREATE TABLE mp3 (
-        mtime,
-        
-        FILENAME,
-        
-        TITLE,
-        ARTIST,
-        ALBUM,
-        YEAR,
-        COMMENT,
-        GENRE,
-        TRACKNUM,
-        
-        VERSION,         -- MPEG audio version (1, 2, 2.5)
-        LAYER,           -- MPEG layer description (1, 2, 3)
-        STEREO,          -- boolean for audio is in stereo
-    
-        VBR,             -- boolean for variable bitrate
-        BITRATE,         -- bitrate in kbps (average for VBR files)
-        FREQUENCY,       -- frequency in kHz
-        SIZE,            -- bytes in audio stream
-        OFFSET,          -- bytes offset that stream begins
-    
-        SECS,            -- total seconds
-        MM,              -- minutes
-        SS,              -- leftover seconds
-        MS,              -- leftover milliseconds
-        TIME,            -- time in MM:SS
-    
-        COPYRIGHT,       -- boolean for audio is copyrighted
-        PADDING,         -- boolean for MP3 frames are padded
-        MODE,            -- channel mode (0 = stereo, 1 = joint stereo,
-                         -- 2 = dual channel, 3 = single channel)
-        FRAMES,          -- approximate number of frames
-        FRAME_LENGTH,    -- approximate length of a frame
-        VBR_SCALE        -- VBR scale from VBR header
-    );
+Creates and/or updates a database of ID3 data from the mp3s found
+in the given directories.
+
+=head2 Options
+
+=over
+
+=item C<--create>, C<-c>
+
+Create the database file named by the C<--file> option.
+
+=item C<--file>, C<-f>
+
+The name of the database file to work with. Defaults to F<~/mp3.db>.
+
+=back
+
+=head1 AUTHOR
+
+Peter Eichman <peichman@cpan.org>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2006 by Peter Eichman. All rights reserved.
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
 
 =cut
