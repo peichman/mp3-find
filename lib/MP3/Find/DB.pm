@@ -122,6 +122,7 @@ sub update_db {
         
         warn "Multiple records for $$mp3{FILENAME}\n" if @$records > 1;
         
+        #TODO: maybe print status updates somewhere else?
         if (@$records == 0) {
             $insert_sth->execute(map { $mp3->{$$_[0]} } @COLUMNS);
             print STDERR "A $$mp3{FILENAME}\n";
@@ -137,6 +138,7 @@ sub update_db {
     # as a workaround for the 'closing dbh with active staement handles warning
     # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
     foreach ($mtime_sth, $insert_sth, $update_sth) {
+        $_->{RaiseError} = 0;  # don't die on error
         $_->{Active} = 1;
         $_->finish;
     }

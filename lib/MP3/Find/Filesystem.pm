@@ -29,9 +29,19 @@ sub search {
         }
     }
     
+    if ($$options{exclude_path}) {
+        my $ref = ref $$options{exclude_path};
+        if ($ref eq 'ARRAY') {
+            $$options{exclude_path} = '(' . join('|', @{ $$options{exclude_path} }) . ')';
+        }
+        unless ($ref eq 'Regexp') {
+            $$options{exclude_path} = qr[$$options{exclude_path}];
+        }
+    }
+    
     # run the actual find
     my @results;
-    find(sub { match_mp3($File::Find::name, $query, \@results) }, $_) foreach @$dirs;
+    find(sub { match_mp3($File::Find::name, $query, \@results, $options) }, $_) foreach @$dirs;
     
     # sort the results
     if (@$sort) {
@@ -53,9 +63,13 @@ sub search {
 }
 
 sub match_mp3 {
-    my ($filename, $query, $results) = @_;
+    my ($filename, $query, $results, $options) = @_;
     
     return unless $filename =~ m{[^/]\.mp3$};
+    if ($$options{exclude_path}) {
+        return if $filename =~ $$options{exclude_path};
+    }
+    
     my $mp3 = {
         FILENAME => $filename,
         %{ get_mp3tag($filename)  || {} },
@@ -102,8 +116,12 @@ using a L<File::Find> based search of the local filesystem.
 
 =head2 Special Options
 
-There are no special options for B<MP3::Find::Filesystem>. See
-L<MP3::Find> for the description of the general options.
+=over
+
+=item C<exclude_path>
+
+Scalar or arrayref; any file whose name matches any of these paths
+will be skipped.
 
 =head1 SEE ALSO
 

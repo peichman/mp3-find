@@ -18,7 +18,7 @@ plan tests => 7;
 
 my $SEARCH_DIR = 't/mp3s';
 my $DB_FILE = 't/mp3.db';
-my $MP3_COUNT = 0;
+my $MP3_COUNT = 1;
 
 # exercise the object
 
