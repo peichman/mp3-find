@@ -2,6 +2,7 @@ Revision history for Perl extension MP3::Find.
 
 0.03
     - added "exclude_path" option to filesystem backend
+    - added "sync_db" method to the DB backend
 
 0.02  1 Feb 2006
     - doc updates to MP3::Find (thanks to Mike Slass for the suggestion)

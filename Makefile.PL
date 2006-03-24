@@ -11,6 +11,7 @@ WriteMakefile(
     },
     EXE_FILES => [qw(
         bin/mp3find
+        bin/mp3db
     )],    
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/MP3/Find.pm', # retrieve abstract from module

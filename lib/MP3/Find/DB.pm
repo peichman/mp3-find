@@ -146,6 +146,29 @@ sub update_db {
     return $count;
 }
 
+sub sync_db {
+    my $self = shift;
+    my $db_file = shift or croak "Need the name of the databse to sync";
+    
+    my $dbh = DBI->connect("dbi:SQLite:dbname=$db_file", '', '', {RaiseError => 1});
+    my $select_sth = $dbh->prepare('SELECT FILENAME FROM mp3');
+    my $delete_sth = $dbh->prepare('DELETE FROM mp3 WHERE FILENAME = ?');
+    
+    # the number of records removed
+    my $count = 0;
+    
+    $select_sth->execute;
+    while (my ($filename) = $select_sth->fetchrow_array) {
+        unless (-e $filename) {
+            $delete_sth->execute($filename);
+            print STDERR "D $filename\n";
+            $count++;
+        }
+    }
+    
+    return $count;    
+}
+
 sub destroy_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of a database to destory";
@@ -258,6 +281,14 @@ from those files to the database. If a file already has a record
 in the database, then it will only be updated if it has been modified
 sinc ethe last time C<update_db> was run.
 
+=head2 sync_db
+
+    my $count = $finder->sync_db($db_filename);
+
+Removes entries from the database that refer to files that no longer
+exist in the filesystem. Returns the count of how many records were
+removed.
+
 =head2 destroy_db
 
     $finder->destroy_db($db_filename);
@@ -269,7 +300,8 @@ Permanantly removes the database.
 Database maintanence routines (e.g. clear out old entries)
 
 Allow the passing of a DSN or an already created C<$dbh> instead
-of a SQLite database filename.
+of a SQLite database filename; or write driver classes to handle
+database dependent tasks (create_db/destroy_db).
 
 =head1 SEE ALSO
 
