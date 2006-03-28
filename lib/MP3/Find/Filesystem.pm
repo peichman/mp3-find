@@ -75,6 +75,24 @@ sub match_mp3 {
         %{ get_mp3tag($filename)  || {} },
         %{ get_mp3info($filename) || {} },
     };
+    
+    if ($$options{use_id3v2}) {
+        require MP3::Tag;
+        # add ID3v2 tag info, if present
+        my $mp3_tags = MP3::Tag->new($filename);
+        $mp3_tags->get_tags;
+        if (my $id3v2 = $mp3_tags->{ID3v2}) {
+            for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
+                my ($info) = $id3v2->get_frame($frame_id);
+                if (ref $info eq 'HASH') {
+                    #TODO: how should we handle these?
+                } else {
+                    $mp3->{$frame_id} = $info;
+                }
+            }
+        }
+    }
+
     for my $field (keys(%{ $query })) {
         my $value = $mp3->{uc($field)};
         return unless defined $value;
@@ -109,6 +127,8 @@ MP3::Find::Filesystem - File::Find-based backend to MP3::Find
 
 L<File::Find>, L<MP3::Info>, L<Scalar::Util>
 
+L<MP3::Tag> is also needed if you want to search using ID3v2 tags.
+
 =head1 DESCRIPTION
 
 This module implements the C<search> method from L<MP3::Find::Base>
@@ -122,6 +142,22 @@ using a L<File::Find> based search of the local filesystem.
 
 Scalar or arrayref; any file whose name matches any of these paths
 will be skipped.
+
+=item C<use_id3v2>
+
+Boolean, defaults to false. If set to true, MP3::Find::Filesystem will
+use L<MP3::Tag> to get the ID3v2 tag for each file. You can then search
+for files by their ID3v2 data, using the four-character frame names. 
+This isn't very useful if you are just search by artist or title, but if,
+for example, you have made use of the C<TOPE> ("Orignal Performer") frame,
+you could search for all the cover songs in your collection:
+
+    $finder->find_mp3s(query => { tope => '.' });
+
+As with the basic query keys, ID3v2 query keys are converted to uppercase
+internally.
+
+=back
 
 =head1 SEE ALSO
 
