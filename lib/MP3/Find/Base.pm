@@ -3,10 +3,7 @@ package MP3::Find::Base;
 use strict;
 use warnings;
 
-use vars qw($VERSION);
 use Carp;
-
-$VERSION = '0.01';
 
 my %format_codes = (
     a => 'ARTIST',
