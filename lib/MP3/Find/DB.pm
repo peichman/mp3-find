@@ -42,6 +42,10 @@ my @COLUMNS = (
     [ VBR_SCALE    => 'INTEGER' ],
 );
 
+my $DEFAULT_STATUS_CALLBACK = sub {
+    my ($action_code, $filename) = @_;
+    print STDERR "$action_code $filename\n";
+};
 
 sub search {
     my $self = shift;
@@ -88,8 +92,10 @@ sub create_db {
 
 sub update_db {
     my $self = shift;
-    my $db_file = shift or croak "Need the name of the databse to update";
+    my $db_file = shift or croak "Need the name of the database to update";
     my $dirs = shift;
+    
+    my $status_callback = $self->{status_callback} || $DEFAULT_STATUS_CALLBACK;
     
     my @dirs = ref $dirs eq 'ARRAY' ? @$dirs : ($dirs);
     
@@ -125,12 +131,12 @@ sub update_db {
         #TODO: maybe print status updates somewhere else?
         if (@$records == 0) {
             $insert_sth->execute(map { $mp3->{$$_[0]} } @COLUMNS);
-            print STDERR "A $$mp3{FILENAME}\n";
+            $status_callback->(A => $$mp3{FILENAME});
             $count++;
         } elsif ($mp3->{mtime} > $$records[0][0]) {
             # the mp3 file is newer than its record
             $update_sth->execute((map { $mp3->{$$_[0]} } @COLUMNS), $mp3->{FILENAME});
-            print STDERR "U $$mp3{FILENAME}\n";
+            $status_callback->(U => $$mp3{FILENAME});
             $count++;
         }
     }
@@ -139,6 +145,7 @@ sub update_db {
     # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
     foreach ($mtime_sth, $insert_sth, $update_sth) {
         $_->{RaiseError} = 0;  # don't die on error
+        $_->{PrintError} = 0;  # ...and don't even say anything
         $_->{Active} = 1;
         $_->finish;
     }
@@ -149,7 +156,9 @@ sub update_db {
 sub sync_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of the databse to sync";
-    
+
+    my $status_callback = $self->{status_callback} || $DEFAULT_STATUS_CALLBACK;
+
     my $dbh = DBI->connect("dbi:SQLite:dbname=$db_file", '', '', {RaiseError => 1});
     my $select_sth = $dbh->prepare('SELECT FILENAME FROM mp3');
     my $delete_sth = $dbh->prepare('DELETE FROM mp3 WHERE FILENAME = ?');
@@ -161,7 +170,7 @@ sub sync_db {
     while (my ($filename) = $select_sth->fetchrow_array) {
         unless (-e $filename) {
             $delete_sth->execute($filename);
-            print STDERR "D $filename\n";
+            $status_callback->(D => $filename);
             $count++;
         }
     }

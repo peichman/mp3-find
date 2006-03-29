@@ -1,5 +1,5 @@
 #!/bin/sh
-perl -I./lib -M$1 -e"\$ver = '$1 version ' . $1->VERSION; print qq[\$ver\\n] . '=' x length(\$ver) . qq[\\n]"
+perl -I./lib -M$1 -e"\$ver = '$1 version ' . $1->VERSION; print qq[\$ver\\n] . '=' x length(\$ver) . qq[\\n\\n]"
 
 PM_FILE=./lib/`echo $1 | sed 's/::/\//g'`.pm
 

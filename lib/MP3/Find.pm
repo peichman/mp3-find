@@ -46,7 +46,7 @@ MP3::Find - Search and sort MP3 files based on their ID3 tags
             title => 'deep in the am',
         },
         ignore_case => 1,
-        match_words => 1,
+        exact_match => 1,
         sort => [qw(year album tracknum)],
         printf => '%2n. %a - %t (%b: %y)',
     );
@@ -76,7 +76,9 @@ rocks (or sucks!) are appreciated.
 =head1 REQUIRES
 
 L<File::Find>, L<MP3::Info>, and L<Scalar::Util> are needed for
-the filesystem backend (L<MP3::Find::Filesystem>).
+the filesystem backend (L<MP3::Find::Filesystem>). In addition,
+if L<MP3::Tag> is available, you can search by explicit ID3v2
+tag frames.
 
 L<DBI>, L<DBD::SQLite>, and L<SQL::Abstract> are needed for the
 database backend (L<MP3::Find::DB>).
@@ -183,8 +185,13 @@ L<MP3::Find::Filesystem>, L<MP3::Find::DB>
 L<mp3find> is the command line frontend to this module (it
 currently only uses the filesystem backend).
 
+L<mp3db> is a (currently rather barebones) command line 
+frontend for creating and updating a SQLite database for 
+use with L<MP3::Find::DB>.
+
 See L<MP3::Info> for more information about the fields you can
-search and sort on.
+search and sort on. See L<http://id3.org/> for information about
+ID3v2 tags.
 
 L<File::Find::Rule::MP3Info> is another way to search for MP3
 files based on their ID3 tags.

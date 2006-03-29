@@ -22,7 +22,9 @@ my $MP3_COUNT = 1;
 
 # exercise the object
 
-my $finder = MP3::Find::DB->new;
+my $finder = MP3::Find::DB->new(
+    status_callback => sub {},  # be quiet about updates
+);
 isa_ok($finder, 'MP3::Find::DB');
 
 eval { $finder->create_db()  };
