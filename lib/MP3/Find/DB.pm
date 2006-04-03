@@ -274,6 +274,27 @@ following schema:
 
 =head1 METHODS
 
+=head2 new
+
+    my $finder = MP3::Find::DB->new(
+        status_callback => \&callback,
+    );
+
+The C<status_callback> gets called each time an entry in the
+database is added, updated, or deleted by the C<update_db> and
+C<sync_db> methods. The arguments passed to the callback are
+a status code (A, U, or D) and the filename for that entry.
+The default callback just prints these to C<STDERR>:
+
+    sub default_callback {
+        my ($status_code, $filename) = @_;
+        print STDERR "$status_code $filename\n";
+    }
+
+To suppress any output, set C<status_callback> to an empty sub:
+
+    status_callback => sub {}
+
 =head2 create_db
 
     $finder->create_db($db_filename);

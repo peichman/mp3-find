@@ -1,5 +1,9 @@
 Revision history for Perl extension MP3::Find.
 
+0.04  2 Apr 2006
+    - BUGFIX: fixed tests that were failing because the test mp3 was not included
+    - added "status_callback" option to DB backend constructor
+
 0.03  27 Mar 2006
     - added "exclude_path" option to filesystem backend
     - added "sync_db" method to the DB backend
