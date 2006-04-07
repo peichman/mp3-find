@@ -13,6 +13,7 @@ GetOptions(
     'exact-match|w' => \my $EXACT_MATCH,
     'sort|s=s'      => \my $SORT_TAG,
     'printf=s'      => \my $FORMAT,
+    '2'             => \my $USE_ID3V2,
 );
 
 my ($DIRS, $QUERY) = build_query(@ARGV);
@@ -26,6 +27,7 @@ print "$_\n" foreach find_mp3s(
     ($SORT_TAG ? (sort => [split(/,/, $SORT_TAG)]) : ()),
     printf      => $FORMAT,
     db_file     => catfile($ENV{HOME}, 'mp3.db'),
+    use_id3v2   => $USE_ID3V2,
 );
 
 =head1 NAME
@@ -68,6 +70,14 @@ Case insensitive matching.
 All search patterns must match the entire value, and not just a
 substring. This has the same effect as putting a C<^> and C<$>
 around each pattern.
+
+=item C<-2>
+
+Lets you give ID3v2 frame ids as search fields. For instance, to
+find everything which has been tagged as having an "Original artist"
+(i.e., It's probably a cover song):
+
+    mp3find ~/music -tope .
 
 =item C<-sort>
 
