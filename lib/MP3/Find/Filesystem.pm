@@ -9,6 +9,13 @@ use File::Find;
 use MP3::Info;
 use Scalar::Util qw(looks_like_number);
 
+eval {
+    require Sort::Key;
+    Sort::Key->import(qw(multikeysorter));
+    use Sort::Key::Natural;
+};
+my $USE_SORT_KEY = $@ ? 0 : 1;
+
 use_winamp_genres();
 
 sub search {
@@ -45,18 +52,29 @@ sub search {
     
     # sort the results
     if (@$sort) {
-        @results = sort {
-            my $compare;
-            foreach (map { uc } @$sort) {
-                # use Scalar::Util to do the right sort of comparison
-                $compare = (looks_like_number($a->{$_}) && looks_like_number($b->{$_})) ?
-                    $a->{$_} <=> $b->{$_} :
-                    $a->{$_} cmp $b->{$_};
-                # we found a field they differ on
-                last if $compare;
-            }
-            return $compare;
-        } @results;
+	if ($USE_SORT_KEY) {
+	    # use Sort::Key to do a (hopefully!) faster sort
+	    #TODO: profile this; at first glance, it doesn't actually seem to be any faster
+	    #warn "Using Sort::Key";
+	    my $sorter = multikeysorter(
+		sub { my $info = $_; map { $info->{uc $_} } @$sort },
+		map { 'natural' } @$sort
+	    );
+	    @results = $sorter->(@results);
+	} else {
+	    @results = sort {
+		my $compare;
+		foreach (map { uc } @$sort) {
+		    # use Scalar::Util to do the right sort of comparison
+		    $compare = (looks_like_number($a->{$_}) && looks_like_number($b->{$_})) ?
+			$a->{$_} <=> $b->{$_} :
+			$a->{$_} cmp $b->{$_};
+		    # we found a field they differ on
+		    last if $compare;
+		}
+		return $compare;
+	    } @results;
+	}
     }
     
     return @results
