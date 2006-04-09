@@ -2,7 +2,6 @@
 use strict;
 
 use Getopt::Long qw(:config pass_through); # use pass_through so we can get the query args
-use lib '/home/peter/projects/mp3-find/lib';
 
 use MP3::Find qw(Filesystem);
 use MP3::Find::Util qw(build_query);

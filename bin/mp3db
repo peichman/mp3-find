@@ -1,7 +1,6 @@
 #!/usr/bin/perl -w
 use strict;
 
-use lib '/home/peter/projects/mp3-find/lib';
 use MP3::Find::DB;
 
 use File::Spec::Functions qw(catfile);
