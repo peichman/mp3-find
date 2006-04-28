@@ -95,20 +95,25 @@ sub match_mp3 {
     };
     
     if ($$options{use_id3v2}) {
-        require MP3::Tag;
-        # add ID3v2 tag info, if present
-        my $mp3_tags = MP3::Tag->new($filename);
-        $mp3_tags->get_tags;
-        if (my $id3v2 = $mp3_tags->{ID3v2}) {
-            for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
-                my ($info) = $id3v2->get_frame($frame_id);
-                if (ref $info eq 'HASH') {
-                    #TODO: how should we handle these?
-                } else {
-                    $mp3->{$frame_id} = $info;
-                }
-            }
-        }
+	eval { require MP3::Tag };
+	if ($@) {
+	    # we weren't able to load MP3::Tag!
+	    warn "MP3::Tag is required to search ID3v2 tags";
+	} else {
+	    # add ID3v2 tag info, if present
+	    my $mp3_tags = MP3::Tag->new($filename);
+	    $mp3_tags->get_tags;
+	    if (my $id3v2 = $mp3_tags->{ID3v2}) {
+		for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
+		    my ($info) = $id3v2->get_frame($frame_id);
+		    if (ref $info eq 'HASH') {
+			#TODO: how should we handle these?
+		    } else {
+			$mp3->{$frame_id} = $info;
+		    }
+		}
+	    }
+	}
     }
 
     for my $field (keys(%{ $query })) {

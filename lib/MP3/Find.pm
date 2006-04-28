@@ -8,7 +8,7 @@ use vars qw($VERSION @EXPORT);
 
 use Carp;
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 
 @EXPORT = qw(find_mp3s);
 
