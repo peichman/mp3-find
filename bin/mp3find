@@ -69,14 +69,6 @@ All search patterns must match the entire value, and not just a
 substring. This has the same effect as putting a C<^> and C<$>
 around each pattern.
 
-=item C<-2>
-
-Lets you give ID3v2 frame ids as search fields. For instance, to
-find everything which has been tagged as having an "Original artist"
-(i.e., It's probably a cover song):
-
-    mp3find ~/music -tope .
-
 =item C<-sort>
 
 Which ID3 fields to sort the results by; separate multiple fields
