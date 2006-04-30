@@ -16,6 +16,10 @@ eval {
 };
 my $USE_SORT_KEY = $@ ? 0 : 1;
 
+
+eval { require MP3::Tag };
+my $CAN_USE_ID3V2 = $@ ? 0 : 1;
+
 use_winamp_genres();
 
 sub search {
@@ -46,6 +50,11 @@ sub search {
         }
     }
     
+    if ($$options{use_id3v2} and not $CAN_USE_ID3V2) {
+	# they want to use ID3v2, but don't have MP3::Tag
+	warn "MP3::Tag is required to search ID3v2 tags\n";
+    }
+	
     # run the actual find
     my @results;
     find(sub { match_mp3($File::Find::name, $query, \@results, $options) }, $_) foreach @$dirs;
@@ -94,20 +103,19 @@ sub match_mp3 {
         %{ get_mp3info($filename) || {} },
     };
     
-    if ($$options{use_id3v2}) {
-	eval { require MP3::Tag };
-	if ($@) {
-	    # we weren't able to load MP3::Tag!
-	    warn "MP3::Tag is required to search ID3v2 tags";
+    if ($CAN_USE_ID3V2 and $$options{use_id3v2}) {
+	# add ID3v2 tag info, if present
+	my $mp3_tags = MP3::Tag->new($filename);
+	unless (defined $mp3_tags) {
+	    warn "Can't get MP3::Tag object for $filename\n";
 	} else {
-	    # add ID3v2 tag info, if present
-	    my $mp3_tags = MP3::Tag->new($filename);
 	    $mp3_tags->get_tags;
 	    if (my $id3v2 = $mp3_tags->{ID3v2}) {
 		for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
 		    my ($info) = $id3v2->get_frame($frame_id);
 		    if (ref $info eq 'HASH') {
-			#TODO: how should we handle these?
+			# use the "Text" value as the value for this frame, if present
+			$mp3->{$frame_id} = $info->{Text} if exists $info->{Text};
 		    } else {
 			$mp3->{$frame_id} = $info;
 		    }
