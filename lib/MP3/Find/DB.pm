@@ -157,6 +157,30 @@ To suppress any output, set C<status_callback> to an empty sub:
 
     status_callback => sub {}
 
+=head2 create
+
+    $finder->create({
+	dsn => 'dbi:SQLite:dbname=mp3.db',
+	dbh => $dbh,
+	db_file => 'mp3.db',
+    });
+
+Creates a new table for storing mp3 info in the database. You can provide
+either a DSN (plus username and password, if needed), an already created
+database handle, or just the name of an SQLite database file.
+
+=cut
+
+sub create {
+    my $self = shift;
+    my $args = shift;
+
+    my $dbh = _get_dbh($args) or croak "Please provide a DBI database handle, DSN, or SQLite database filename";
+    
+    my $create = 'CREATE TABLE mp3 (' . join(',', map { "$$_[0] $$_[1]" } @COLUMNS) . ')';
+    $dbh->do($create);
+}
+
 =head2 create_db
 
     $finder->create_db($db_filename);
@@ -171,7 +195,8 @@ sub create_db {
     my $self = shift;
     my $db_file = shift or croak "Need a name for the database I'm about to create";
     my $dbh = DBI->connect("dbi:SQLite:dbname=$db_file", '', '', {RaiseError => 1});
-    $dbh->do('CREATE TABLE mp3 (' . join(',', map { "$$_[0] $$_[1]" } @COLUMNS) . ')');
+    my $create = 'CREATE TABLE mp3 (' . join(',', map { "$$_[0] $$_[1]" } @COLUMNS) . ')';
+    $dbh->do($create);
 }
 
 =head2 update
@@ -189,12 +214,38 @@ files found have been updated since they have been recorded in the database
 
 =cut
 
+sub _get_dbh {
+    my $args = shift;
+    return $args->{dbh} if defined $args->{dbh};
+    if (defined $args->{dsn}) {
+    	my $dbh = DBI->connect(
+	    $args->{dsn}, 
+	    $args->{username}, 
+	    $args->{password}, 
+	    { RaiseError => 1 },
+	);
+	return $dbh;
+    }
+    # default to a SQLite database
+    if (defined $args->{db_file}) {
+	my $dbh = DBI->connect(
+	    "dbi:SQLite:dbname=$$args{db_file}",
+	    '',
+	    '',
+	    { RaiseError => 1 },
+	);
+	return $dbh;
+    }
+    return;
+}
+	
 # this is update_db and update_files (from Matt Dietrich) rolled into one
 sub update {
     my $self = shift;
     my $args = shift;
 
-    my $dsn   = $args->{dsn} or croak "Need a DSN to connect to";
+    my $dbh = _get_dbh($args) or croak "Please provide a DBI database handle, DSN, or SQLite database filename";
+
     my @dirs  = $args->{dirs}
 		    ? ref $args->{dirs} eq 'ARRAY'
 			? @{ $args->{dirs} }
@@ -209,7 +260,6 @@ sub update {
     
     my $status_callback = $self->{status_callback} || $DEFAULT_STATUS_CALLBACK;
 
-    my $dbh = DBI->connect($dsn, '', '', {RaiseError => 1});
     my $mtime_sth = $dbh->prepare('SELECT mtime FROM mp3 WHERE FILENAME = ?');
     my $insert_sth = $dbh->prepare(
         'INSERT INTO mp3 (' . 
