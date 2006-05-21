@@ -9,6 +9,8 @@ use File::Find;
 use MP3::Info;
 use Scalar::Util qw(looks_like_number);
 
+use MP3::Find::Util qw(get_mp3_metadata);
+
 eval {
     require Sort::Key;
     Sort::Key->import(qw(multikeysorter));
@@ -96,33 +98,11 @@ sub match_mp3 {
     if ($$options{exclude_path}) {
         return if $filename =~ $$options{exclude_path};
     }
-    
-    my $mp3 = {
-        FILENAME => $filename,
-        %{ get_mp3tag($filename)  || {} },
-        %{ get_mp3info($filename) || {} },
-    };
-    
-    if ($CAN_USE_ID3V2 and $$options{use_id3v2}) {
-	# add ID3v2 tag info, if present
-	my $mp3_tags = MP3::Tag->new($filename);
-	unless (defined $mp3_tags) {
-	    warn "Can't get MP3::Tag object for $filename\n";
-	} else {
-	    $mp3_tags->get_tags;
-	    if (my $id3v2 = $mp3_tags->{ID3v2}) {
-		for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
-		    my ($info) = $id3v2->get_frame($frame_id);
-		    if (ref $info eq 'HASH') {
-			# use the "Text" value as the value for this frame, if present
-			$mp3->{$frame_id} = $info->{Text} if exists $info->{Text};
-		    } else {
-			$mp3->{$frame_id} = $info;
-		    }
-		}
-	    }
-	}
-    }
+
+    my $mp3 = get_mp3_metadata({
+	filename  => $filename,
+	use_id3v2 => $options->{use_id3v2},
+    });
 
     for my $field (keys(%{ $query })) {
         my $value = $mp3->{uc($field)};

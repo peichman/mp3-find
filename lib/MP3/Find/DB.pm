@@ -9,6 +9,8 @@ use Carp;
 use DBI;
 use SQL::Abstract;
 
+use MP3::Find::Util qw(get_mp3_metadata);
+
 my $sql = SQL::Abstract->new;
 
 my @COLUMNS = (
@@ -47,6 +49,7 @@ my $DEFAULT_STATUS_CALLBACK = sub {
     print STDERR "$action_code $filename\n";
 };
 
+# TODO: use DSNs instead of SQLite db names
 sub search {
     my $self = shift;
     my ($query, $dirs, $sort, $options) = @_;
@@ -83,12 +86,114 @@ sub search {
     return @results;
 }
 
+# TODO: convert to using DSNs instead of hardcoded SQLite connections
+# TODO: extended table for ID3v2 data
 sub create_db {
     my $self = shift;
     my $db_file = shift or croak "Need a name for the database I'm about to create";
     my $dbh = DBI->connect("dbi:SQLite:dbname=$db_file", '', '', {RaiseError => 1});
     $dbh->do('CREATE TABLE mp3 (' . join(',', map { "$$_[0] $$_[1]" } @COLUMNS) . ')');
 }
+
+# this is update_db and update_files (from Matt Dietrich) rolled into one
+=head2 update
+
+    my $count = $finder->update({
+	dsn   => 'dbi:SQLite:dbname=mp3.db',
+	files => \@filenames,
+	dirs  => [qw(music downloads/mp3)],
+    });
+
+Compares the files in the C<files> list plus any MP3s found by searching
+in C<dirs> to their records in the database pointed to by C<dsn>. If the
+files found have been updated since they have been recorded in the database
+(or if they are not in the database), they are updated (or added).
+
+=cut
+
+sub update {
+    my $self = shift;
+    my $args = shift;
+
+    my $dsn   = $args->{dsn} or croak "Need a DSN to connect to";
+    my @dirs  = $args->{dirs}
+		    ? ref $args->{dirs} eq 'ARRAY'
+			? @{ $args->{dirs} }
+			: ($args->{dirs})
+		    : ();
+
+    my @files  = $args->{files}
+		    ? ref $args->{files} eq 'ARRAY' 
+			? @{ $args->{files} }
+			: ($args->{files})
+		    : ();
+    
+    my $status_callback = $self->{status_callback} || $DEFAULT_STATUS_CALLBACK;
+
+    my $dbh = DBI->connect($dsn, '', '', {RaiseError => 1});
+    my $mtime_sth = $dbh->prepare('SELECT mtime FROM mp3 WHERE FILENAME = ?');
+    my $insert_sth = $dbh->prepare(
+        'INSERT INTO mp3 (' . 
+            join(',', map { $$_[0] } @COLUMNS) .
+        ') VALUES (' .
+            join(',', map { '?' } @COLUMNS) .
+        ')'
+    );
+    my $update_sth = $dbh->prepare(
+        'UPDATE mp3 SET ' . 
+            join(',', map { "$$_[0] = ?" } @COLUMNS) . 
+        ' WHERE FILENAME = ?'
+    );
+    
+    my $count = 0;  # the number of records added or updated
+    my @mp3s;       # metadata for mp3s found
+
+    # look for mp3s using the filesystem backend if we have dirs to search in
+    if (@dirs) {
+	require MP3::Find::Filesystem;
+	my $finder = MP3::Find::Filesystem->new;
+	unshift @mp3s, $finder->find_mp3s(dir => \@dirs, no_format => 1);
+    }
+
+    # get the metadata on specific files
+    unshift @mp3s, map { get_mp3_metadata({ filename => $_ }) } @files;
+
+    # check each file against its record in the database
+    for my $mp3 (@mp3s) {	
+        # see if the file has been modified since it was first put into the db
+        $mp3->{mtime} = (stat($mp3->{FILENAME}))[9];
+        $mtime_sth->execute($mp3->{FILENAME});
+        my $records = $mtime_sth->fetchall_arrayref;
+        
+        warn "Multiple records for $$mp3{FILENAME}\n" if @$records > 1;
+        
+        if (@$records == 0) {
+	    # we are adding a record
+            $insert_sth->execute(map { $mp3->{$$_[0]} } @COLUMNS);
+            $status_callback->(A => $$mp3{FILENAME});
+            $count++;
+        } elsif ($mp3->{mtime} > $$records[0][0]) {
+            # the mp3 file is newer than its record
+            $update_sth->execute((map { $mp3->{$$_[0]} } @COLUMNS), $mp3->{FILENAME});
+            $status_callback->(U => $$mp3{FILENAME});
+            $count++;
+        }
+    }
+    
+    # SQLite specific code:
+    # as a workaround for the 'closing dbh with active staement handles warning
+    # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
+    foreach ($mtime_sth, $insert_sth, $update_sth) {
+        $_->{RaiseError} = 0;  # don't die on error
+        $_->{PrintError} = 0;  # ...and don't even say anything
+        $_->{Active} = 1;
+        $_->finish;
+    }
+    
+    return $count;
+}
+
+
 
 sub update_db {
     my $self = shift;
@@ -128,7 +233,6 @@ sub update_db {
         
         warn "Multiple records for $$mp3{FILENAME}\n" if @$records > 1;
         
-        #TODO: maybe print status updates somewhere else?
         if (@$records == 0) {
             $insert_sth->execute(map { $mp3->{$$_[0]} } @COLUMNS);
             $status_callback->(A => $$mp3{FILENAME});
@@ -153,6 +257,7 @@ sub update_db {
     return $count;
 }
 
+# TODO: use DSNs instead of SQLite db names
 sub sync_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of the databse to sync";
@@ -178,6 +283,7 @@ sub sync_db {
     return $count;    
 }
 
+# TODO: use DSNs instead of SQLite db names (this might get funky)
 sub destroy_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of a database to destory";
@@ -340,6 +446,11 @@ L<MP3::Find>, L<MP3::Find::Filesystem>, L<mp3db>
 =head1 AUTHOR
 
 Peter Eichman <peichman@cpan.org>
+
+=head1 THANKS
+
+Thanks to Matt Dietrich for suggesting having an option to just 
+update specific files instead of doing a (longer) full search.
 
 =head1 COPYRIGHT AND LICENSE
 

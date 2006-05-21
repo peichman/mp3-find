@@ -12,11 +12,21 @@ GetOptions(
 
 $DB_FILE ||= catfile($ENV{HOME}, 'mp3.db');
 
-my @DIRS = @ARGV;
+my @NAMES = @ARGV;
 
 my $f = MP3::Find::DB->new;
 $f->create_db($DB_FILE) if $CREATE;
-$f->update_db($DB_FILE, \@DIRS) if @DIRS;
+
+if (@NAMES) {
+    my @files = grep { -f } @NAMES;
+    my @dirs  = grep { -d } @NAMES;
+
+    $f->update({
+	dsn   => "dbi:SQLite:dbname=$DB_FILE",
+	dirs  => \@dirs,
+	files => \@files,
+    });
+}
 
 =head1 NAME
 
