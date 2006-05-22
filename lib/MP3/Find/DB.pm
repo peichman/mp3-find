@@ -134,6 +134,44 @@ following schema:
 
 =back
 
+=cut
+
+sub _get_dbh {
+    my $args = shift;
+    return $args->{dbh} if defined $args->{dbh};
+    if (defined $args->{dsn}) {
+    	my $dbh = DBI->connect(
+	    $args->{dsn}, 
+	    $args->{username}, 
+	    $args->{password}, 
+	    { RaiseError => 1 },
+	);
+	return $dbh;
+    }
+    # default to a SQLite database
+    if (defined $args->{db_file}) {
+	my $dbh = DBI->connect(
+	    "dbi:SQLite:dbname=$$args{db_file}",
+	    '',
+	    '',
+	    { RaiseError => 1 },
+	);
+	return $dbh;
+    }
+    return;
+}
+
+sub _sqlite_workaround {
+    # as a workaround for the 'closing dbh with active staement handles warning
+    # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
+    foreach (@_) {
+        $_->{RaiseError} = 0;  # don't die on error
+        $_->{PrintError} = 0;  # ...and don't even say anything
+        $_->{Active} = 1;
+        $_->finish;
+    }
+}
+ 
 =head1 METHODS
 
 =head2 new
@@ -181,7 +219,7 @@ sub create {
     $dbh->do($create);
 }
 
-=head2 create_db
+=head2 create_db (DEPRECATED)
 
     $finder->create_db($db_filename);
 
@@ -189,7 +227,6 @@ Creates a SQLite database in the file named c<$db_filename>.
 
 =cut
 
-# TODO: convert to using DSNs instead of hardcoded SQLite connections
 # TODO: extended table for ID3v2 data
 sub create_db {
     my $self = shift;
@@ -212,33 +249,11 @@ in C<dirs> to their records in the database pointed to by C<dsn>. If the
 files found have been updated since they have been recorded in the database
 (or if they are not in the database), they are updated (or added).
 
+Instead of a C<dsn>, you can also provide either an already created
+database handle as C<dbh> or the filename of an SQLite database as C<db_file>.
+
 =cut
 
-sub _get_dbh {
-    my $args = shift;
-    return $args->{dbh} if defined $args->{dbh};
-    if (defined $args->{dsn}) {
-    	my $dbh = DBI->connect(
-	    $args->{dsn}, 
-	    $args->{username}, 
-	    $args->{password}, 
-	    { RaiseError => 1 },
-	);
-	return $dbh;
-    }
-    # default to a SQLite database
-    if (defined $args->{db_file}) {
-	my $dbh = DBI->connect(
-	    "dbi:SQLite:dbname=$$args{db_file}",
-	    '',
-	    '',
-	    { RaiseError => 1 },
-	);
-	return $dbh;
-    }
-    return;
-}
-	
 # this is update_db and update_files (from Matt Dietrich) rolled into one
 sub update {
     my $self = shift;
@@ -309,20 +324,13 @@ sub update {
         }
     }
     
-    # SQLite specific code:
-    # as a workaround for the 'closing dbh with active staement handles warning
-    # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
-    foreach ($mtime_sth, $insert_sth, $update_sth) {
-        $_->{RaiseError} = 0;  # don't die on error
-        $_->{PrintError} = 0;  # ...and don't even say anything
-        $_->{Active} = 1;
-        $_->finish;
-    }
-    
+    # SQLite buggy driver
+    _sqlite_workaround($mtime_sth, $insert_sth, $update_sth);
+     
     return $count;
 }
 
-=head2 update_db
+=head2 update_db (DEPRECATED)
 
     my $count = $finder->update_db($db_filename, \@dirs);
 
@@ -384,19 +392,19 @@ sub update_db {
         }
     }
     
-    # as a workaround for the 'closing dbh with active staement handles warning
-    # (see http://rt.cpan.org/Ticket/Display.html?id=9643#txn-120724)
-    foreach ($mtime_sth, $insert_sth, $update_sth) {
-        $_->{RaiseError} = 0;  # don't die on error
-        $_->{PrintError} = 0;  # ...and don't even say anything
-        $_->{Active} = 1;
-        $_->finish;
-    }
+    # SQLite buggy driver
+    _sqlite_workaround($mtime_sth, $insert_sth, $update_sth);
     
     return $count;
 }
 
 =head2 sync
+
+    my $count = $finder->sync({ dsn => $DSN });
+
+Removes entries from the database that refer to files that no longer
+exist in the filesystem. Returns the count of how many records were
+removed.
 
 =cut
 
@@ -423,10 +431,13 @@ sub sync {
         }
     }
     
+    # SQLite buggy driver
+    _sqlite_workaround($select_sth, $delete_sth);
+    
     return $count;    
 }
 
-=head2 sync_db
+=head2 sync_db (DEPRECATED)
 
     my $count = $finder->sync_db($db_filename);
 
@@ -436,7 +447,6 @@ removed.
 
 =cut
 
-# TODO: use DSNs instead of SQLite db names
 sub sync_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of the databse to sync";
@@ -473,19 +483,18 @@ Permanantly removes the database.
 # TODO: use DSNs instead of SQLite db names (this might get funky)
 sub destroy_db {
     my $self = shift;
-    my $db_file = shift or croak "Need the name of a database to destory";
+    my $db_file = shift or croak "Need the name of a database to destroy";
     unlink $db_file;
 }
 
 
-# TODO: use DSNs instead of SQLite db names
 sub search {
     my $self = shift;
     my ($query, $dirs, $sort, $options) = @_;
     
     croak 'Need a database name to search (set "db_file" in the call to find_mp3s)' unless $$options{db_file};
     
-    my $dbh = DBI->connect("dbi:SQLite:dbname=$$options{db_file}", '', '', {RaiseError => 1});
+    my $dbh = _get_dbh($options);
     
     # use the 'LIKE' operator to ignore case
     my $op = $$options{ignore_case} ? 'LIKE' : '=';
