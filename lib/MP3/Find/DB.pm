@@ -14,7 +14,7 @@ use MP3::Find::Util qw(get_mp3_metadata);
 my $sql = SQL::Abstract->new;
 
 my @COLUMNS = (
-    [ mtime        => 'INTEGER' ],  # the filesystem mtime, so we can do incremental updates
+    [ mtime        => 'INTEGER' ],  # filesystem mtime, so we can do incremental updates
     [ FILENAME     => 'TEXT' ], 
     [ TITLE        => 'TEXT' ], 
     [ ARTIST       => 'TEXT' ], 
@@ -394,6 +394,36 @@ sub update_db {
     }
     
     return $count;
+}
+
+=head2 sync
+
+=cut
+
+sub sync {
+    my $self = shift;
+    my $args = shift;
+
+    my $dbh = _get_dbh($args) or croak "Please provide a DBI database handle, DSN, or SQLite database filename";
+    
+    my $status_callback = $self->{status_callback} || $DEFAULT_STATUS_CALLBACK;
+
+    my $select_sth = $dbh->prepare('SELECT FILENAME FROM mp3');
+    my $delete_sth = $dbh->prepare('DELETE FROM mp3 WHERE FILENAME = ?');
+    
+    # the number of records removed
+    my $count = 0;
+    
+    $select_sth->execute;
+    while (my ($filename) = $select_sth->fetchrow_array) {
+        unless (-e $filename) {
+            $delete_sth->execute($filename);
+            $status_callback->(D => $filename);
+            $count++;
+        }
+    }
+    
+    return $count;    
 }
 
 =head2 sync_db
