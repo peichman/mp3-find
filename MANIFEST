@@ -5,6 +5,7 @@ README
 t/01.t
 t/02-filesystem.t
 t/03-db.t
+t/04-new-db.t
 t/mp3s/not-an-mp3
 t/mp3s/dont_look_here/testv2.4.0.mp3
 lib/MP3/Find.pm

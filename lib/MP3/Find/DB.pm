@@ -71,10 +71,19 @@ MP3::Find::DB - SQLite database backend to MP3::Find
     # you can do things besides just searching the database
     
     # create another database
-    $finder->create_db('my_mp3s.db');
+    $finder->create({ db_file => 'my_mp3s.db' });
     
-    # update the database from the filesystem
-    $finder->update_db('my_mp3s.db', ['/home/peter/mp3', '/home/peter/cds']);
+    # update the database by searching the filesystem
+    $finder->update({
+	db_file => 'my_mp3s.db',
+	dirs => ['/home/peter/mp3', '/home/peter/cds'],
+    });
+
+    # or just update specific mp3s
+    $finder->update({
+	db_file => 'my_mp3s.db',
+	files => \@filenames,
+    });
     
     # and then blow it away
     $finder->destroy_db('my_mp3s.db');
@@ -85,21 +94,12 @@ L<DBI>, L<DBD::SQLite>, L<SQL::Abstract>
 
 =head1 DESCRIPTION
 
-This is the SQLite database backend for L<MP3::Find>.
+This is the database backend for L<MP3::Find>. The easiest way to
+use it is with a SQLite database, but you can also pass in your own
+DSN or database handle.
 
-B<Note:> I'm still working out some kinks in here, so this backend
-is currently not as stable as the Filesystem backend.
-
-=head2 Special Options
-
-=over
-
-=item C<db_file>
-
-The name of the SQLite database file to use. Defaults to F<~/mp3.db>.
-
-The database should have at least one table named C<mp3> with the
-following schema:
+The database you use should have at least one table named C<mp3> with 
+the following schema:
 
     CREATE TABLE mp3 (
         mtime         INTEGER,
@@ -132,13 +132,47 @@ following schema:
         VBR_SCALE     INTEGER
     );
 
+B<Note:> I'm still working out some kinks in here, so this backend
+is currently not as stable as the Filesystem backend. Expect API
+fluctuations for now.
+
+B<Deprecated Methods:> C<create_db>, C<update_db>, and C<sync_db>
+have been deprectaed in this release, and will be removed in a future
+release. PLease switch to the new methods C<create>, C<update>, and
+C<sync>.
+
+=head2 Special Options
+
+When using this backend, provide one of the following additional options
+to the C<search> method:
+
+=over
+
+=item C<dsn>, C<username>, C<password>
+
+A custom DSN and (optional) username and password. This gets passed
+to the C<connect> method of L<DBI>.
+
+=item C<dbh>
+
+An already created L<DBI> database handle object.
+
+=item C<db_file>
+
+The name of the SQLite database file to use.
+
 =back
 
 =cut
 
+# get a database handle from named arguments
 sub _get_dbh {
     my $args = shift;
+
+    # we got an explicit $dbh object
     return $args->{dbh} if defined $args->{dbh};
+
+    # or a custom DSN
     if (defined $args->{dsn}) {
     	my $dbh = DBI->connect(
 	    $args->{dsn}, 
@@ -148,6 +182,7 @@ sub _get_dbh {
 	);
 	return $dbh;
     }
+    
     # default to a SQLite database
     if (defined $args->{db_file}) {
 	my $dbh = DBI->connect(
@@ -158,6 +193,7 @@ sub _get_dbh {
 	);
 	return $dbh;
     }
+
     return;
 }
 
@@ -181,8 +217,8 @@ sub _sqlite_workaround {
     );
 
 The C<status_callback> gets called each time an entry in the
-database is added, updated, or deleted by the C<update_db> and
-C<sync_db> methods. The arguments passed to the callback are
+database is added, updated, or deleted by the C<update> and
+C<sync> methods. The arguments passed to the callback are
 a status code (A, U, or D) and the filename for that entry.
 The default callback just prints these to C<STDERR>:
 
@@ -223,7 +259,7 @@ sub create {
 
     $finder->create_db($db_filename);
 
-Creates a SQLite database in the file named c<$db_filename>.
+Creates a SQLite database in the file named C<$db_filename>.
 
 =cut
 
@@ -529,11 +565,9 @@ sub search {
 
 =head1 TODO
 
-Database maintanence routines (e.g. clear out old entries)
+Store/search ID3v2 tags
 
-Allow the passing of a DSN or an already created C<$dbh> instead
-of a SQLite database filename; or write driver classes to handle
-database dependent tasks (create_db/destroy_db).
+Driver classes to handle database dependent tasks?
 
 =head1 SEE ALSO
 

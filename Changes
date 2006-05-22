@@ -1,5 +1,9 @@
 Revision history for Perl extension MP3::Find.
 
+0.06
+    - deprecated the create_db, update_db, and sync_db methods
+    - databases can be selected by a custom DSN or an already open database handle
+
 0.05 28 Apr 2006
     - mp3find searches in ID3v2 tags if MP3::Tag is available
     - using Sort::Key for sorting of results (if available)
