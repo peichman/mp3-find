@@ -14,7 +14,7 @@ use MP3::Find::Util qw(get_mp3_metadata);
 eval {
     require Sort::Key;
     Sort::Key->import(qw(multikeysorter));
-    use Sort::Key::Natural;
+    require Sort::Key::Natural;
 };
 my $USE_SORT_KEY = $@ ? 0 : 1;
 
