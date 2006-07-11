@@ -136,10 +136,10 @@ B<Note:> I'm still working out some kinks in here, so this backend
 is currently not as stable as the Filesystem backend. Expect API
 fluctuations for now.
 
-B<Deprecated Methods:> C<create_db>, C<update_db>, and C<sync_db>
-have been deprectaed in this release, and will be removed in a future
-release. PLease switch to the new methods C<create>, C<update>, and
-C<sync>.
+B<Deprecated Methods:> C<create_db>, C<update_db>, C<sync_db>, and
+C<destroy_db> have been deprecated in this release, and will be 
+removed in a future release. Please switch to the new methods C<create>,
+C<update>, C<sync>, and C<destory>.
 
 =head2 Special Options
 
@@ -508,7 +508,30 @@ sub sync_db {
     return $count;    
 }
 
-=head2 destroy_db
+=head2 destroy
+
+    $finder->destroy({ db_file => $filename });
+
+Permanantly removes the database. Unlike the other utility methods,
+this one can only act on SQLite C<db_file> filenames, and not DSNs
+or database handles.
+
+=cut
+
+sub destroy {
+    my $self = shift;
+    my $args = shift;
+
+    # XXX: this method only knows how to deal with SQLite files;
+    # is there a way to DROP a database given a $dbh?
+
+    my $db_file = $args->{db_file} or croak "Need a db_file argument";
+
+    # actually delete the thing
+    unlink $db_file;
+}
+
+=head2 destroy_db (DEPRECATED)
 
     $finder->destroy_db($db_filename);
 
@@ -516,7 +539,6 @@ Permanantly removes the database.
 
 =cut
 
-# TODO: use DSNs instead of SQLite db names (this might get funky)
 sub destroy_db {
     my $self = shift;
     my $db_file = shift or croak "Need the name of a database to destroy";
@@ -579,8 +601,9 @@ Peter Eichman <peichman@cpan.org>
 
 =head1 THANKS
 
-Thanks to Matt Dietrich for suggesting having an option to just 
-update specific files instead of doing a (longer) full search.
+Thanks to Matt Dietrich <perl@rainboxx.de> for suggesting having an 
+option to just update specific files instead of doing a (longer) full
+search.
 
 =head1 COPYRIGHT AND LICENSE
 
