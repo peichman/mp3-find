@@ -5,7 +5,6 @@ use warnings;
 
 use Carp;
 
-#TODO: allow ID3v2 tags in printf format
 my %format_codes = (
     a => 'ARTIST',
     t => 'TITLE',

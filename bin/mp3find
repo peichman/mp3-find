@@ -25,6 +25,7 @@ print "$_\n" foreach find_mp3s(
     ($SORT_TAG ? (sort => [split(/,/, $SORT_TAG)]) : ()),
     printf      => $FORMAT,
     db_file     => catfile($ENV{HOME}, 'mp3.db'),
+    use_id3v2   => 1,  # search using ID3v2 tags by default
 );
 
 =head1 NAME
