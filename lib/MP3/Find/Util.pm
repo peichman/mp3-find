@@ -50,30 +50,10 @@ sub get_mp3_metadata {
     
     my $mp3 = {
         FILENAME => $filename,
-        %{ get_mp3tag($filename)  || {} },
-        %{ get_mp3info($filename) || {} },
+        # ID3v2 tags, if present, override ID3v1 tags
+        %{ get_mp3tag($filename, 0, 2)  || {} },
+        %{ get_mp3info($filename)       || {} },
     };
-    
-    if ($CAN_USE_ID3V2 and $args->{use_id3v2}) {
-	# add ID3v2 tag info, if present
-	my $mp3_tags = MP3::Tag->new($filename);
-	unless (defined $mp3_tags) {
-	    warn "Can't get MP3::Tag object for $filename\n";
-	} else {
-	    $mp3_tags->get_tags;
-	    if (my $id3v2 = $mp3_tags->{ID3v2}) {
-		for my $frame_id (keys %{ $id3v2->get_frame_ids }) {
-		    my ($info) = $id3v2->get_frame($frame_id);
-		    if (ref $info eq 'HASH') {
-			# use the "Text" value as the value for this frame, if present
-			$mp3->{$frame_id} = $info->{Text} if exists $info->{Text};
-		    } else {
-			$mp3->{$frame_id} = $info;
-		    }
-		}
-	    }
-	}
-    }
 
     return $mp3;
 }
