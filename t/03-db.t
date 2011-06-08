@@ -10,11 +10,10 @@ BEGIN {
     plan skip_all => 'DBD::SQLite required to use MP3::Find::DB backend' if $@;
     eval { require SQL::Abstract };
     plan skip_all => 'SQL::Abstract required to use MP3::Find::DB backend' if $@;
-    
+
+    plan tests => 8;
     use_ok('MP3::Find::DB') 
 };
-
-plan tests => 7;
 
 my $SEARCH_DIR = 't/mp3s';
 my $DB_FILE = 't/mp3.db';
