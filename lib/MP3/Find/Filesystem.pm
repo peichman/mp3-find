@@ -11,16 +11,13 @@ use Scalar::Util qw(looks_like_number);
 
 use MP3::Find::Util qw(get_mp3_metadata);
 
+# XXX: this may or may not lead to faster searches
 eval {
     require Sort::Key;
     Sort::Key->import(qw(multikeysorter));
     require Sort::Key::Natural;
 };
 my $USE_SORT_KEY = $@ ? 0 : 1;
-
-
-eval { require MP3::Tag };
-my $CAN_USE_ID3V2 = $@ ? 0 : 1;
 
 use_winamp_genres();
 
@@ -51,12 +48,7 @@ sub search {
             $$options{exclude_path} = qr[$$options{exclude_path}];
         }
     }
-    
-    if ($$options{use_id3v2} and not $CAN_USE_ID3V2) {
-	# they want to use ID3v2, but don't have MP3::Tag
-	warn "MP3::Tag is required to search ID3v2 tags\n";
-    }
-	
+
     # run the actual find
     my @results;
     find(sub { match_mp3($File::Find::name, $query, \@results, $options) }, $_) foreach @$dirs;
@@ -101,7 +93,6 @@ sub match_mp3 {
 
     my $mp3 = get_mp3_metadata({
 	filename  => $filename,
-	use_id3v2 => $options->{use_id3v2},
     });
 
     for my $field (keys(%{ $query })) {
@@ -138,12 +129,21 @@ MP3::Find::Filesystem - File::Find-based backend to MP3::Find
 
 L<File::Find>, L<MP3::Info>, L<Scalar::Util>
 
-L<MP3::Tag> is also needed if you want to search using ID3v2 tags.
-
 =head1 DESCRIPTION
 
 This module implements the C<search> method from L<MP3::Find::Base>
 using a L<File::Find> based search of the local filesystem.
+
+In addition to just the basic ID3v1 tags, you can search for files by their
+ID3v2 data, using the four-character frame names.  This isn't very useful if
+you are just search by artist or title, but if, for example, you have made use
+of the C<TOPE> ("Orignal Performer") frame, you could search for all the cover
+songs in your collection:
+
+    $finder->find_mp3s(query => { tope => '.' });
+
+As with the basic query keys, ID3v2 query keys are converted to uppercase
+internally.
 
 =head2 Special Options
 
@@ -151,22 +151,8 @@ using a L<File::Find> based search of the local filesystem.
 
 =item C<exclude_path>
 
-Scalar or arrayref; any file whose name matches any of these paths
-will be skipped.
-
-=item C<use_id3v2>
-
-Boolean, defaults to false. If set to true, MP3::Find::Filesystem will
-use L<MP3::Tag> to get the ID3v2 tag for each file. You can then search
-for files by their ID3v2 data, using the four-character frame names. 
-This isn't very useful if you are just search by artist or title, but if,
-for example, you have made use of the C<TOPE> ("Orignal Performer") frame,
-you could search for all the cover songs in your collection:
-
-    $finder->find_mp3s(query => { tope => '.' });
-
-As with the basic query keys, ID3v2 query keys are converted to uppercase
-internally.
+Scalar or arrayref; any file whose name matches any of these paths will be
+skipped.
 
 =back
 
@@ -180,7 +166,7 @@ Peter Eichman <peichman@cpan.org>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2006 by Peter Eichman. All rights reserved.
+Copyright (c) 2006-2008 by Peter Eichman. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
